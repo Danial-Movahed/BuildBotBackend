@@ -3,6 +3,19 @@ from common import *
 class Main:
     def __init__(self) -> None:
         self.GitController = GitController()
+        self.t = threading.Thread(target=self.SendSystemUsage)
+        self.t.start()
+    
+    def SendSystemUsage(self):
+        while True:
+            socketio.emit("SystemUsageStat",{
+                "CPU": psutil.cpu_percent(),
+                "Memory": psutil.virtual_memory()[2],
+                "Disk": psutil.disk_usage("/")[3]
+            })
+            print("sending")
+            sleep(2)
+
 
 class GitController:
     def __init__(self) -> None:

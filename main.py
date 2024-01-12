@@ -4,7 +4,6 @@ from baseClass import *
 CORS(app)
 mainApp = Main()
 
-
 @app.route('/git/clone', methods=['POST'])
 def git_clone():
     req = request.get_json()
