@@ -1,20 +1,28 @@
 from common import *
 
+
 class Main:
     def __init__(self) -> None:
         self.GitController = GitController()
         self.t = threading.Thread(target=self.SendSystemUsage)
         self.t.start()
-    
+
     def SendSystemUsage(self):
         while True:
-            socketio.emit("SystemUsageStat",{
+            socketio.emit("SystemUsageStat", {
                 "CPU": psutil.cpu_percent(),
                 "Memory": psutil.virtual_memory()[2],
                 "Disk": psutil.disk_usage("/")[3]
             })
-            print("sending")
             sleep(2)
+
+    @socketio.on('Console')
+    def HandleConsole(jsonData):
+        if jsonData["data"] == "Start":
+            t = threading.Thread(target=lambda p: subprocess.Popen(
+                ["/usr/bin/env", "ttyd", "-p", p, "--writable", "-o", "bash"]), args=(jsonData["port"],))
+            t.start()
+            socketio.emit("ConsoleStarted", {"data": jsonData["port"]})
 
 
 class GitController:
@@ -33,8 +41,8 @@ class GitController:
             git.Repo.clone_from(url, directory, progress=self.CloneProgress)
             socketio.emit('CloneStatus', {"data": 'Success'})
         except Exception as e:
-           socketio.emit("CloneStatus", {"data": str(e)})
-           print(str(e))
+            socketio.emit("CloneStatus", {"data": str(e)})
+            print(str(e))
 
 
 class CloneProgress(RemoteProgress):
