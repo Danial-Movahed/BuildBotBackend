@@ -13,3 +13,4 @@ import subprocess
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
+buildingProcess = None

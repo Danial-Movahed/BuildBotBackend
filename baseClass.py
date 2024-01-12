@@ -1,6 +1,37 @@
 from common import *
 
 
+def follow(thefile, aliveChecker):
+    thefile.seek(0, 2)
+    while aliveChecker:
+        line = thefile.readline()
+        if not line:
+            sleep(0.5)
+            continue
+        yield line
+
+
+def StartBuild(jsonData):
+    subprocess.run("/usr/bin/env make > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
+                   "../Projects/"+jsonData["Project"]), shell=True)
+
+
+def SendBuildOut(jsonData):
+    logfile = open(os.path.join(os.getcwd(), "../Projects/" +
+                   jsonData["Project"]+"/.BuildOutput"), "r")
+    loglines = follow(logfile, buildingProcess.is_alive())
+    for line in loglines:
+        socketio.emit("BuildLog", {"line": line})
+
+
+def SendBuildErr(jsonData):
+    errfile = open(os.path.join(os.getcwd(), "../Projects/" +
+                   jsonData["Project"]+"/.BuildError"), "r")
+    errlines = follow(errfile, buildingProcess.is_alive())
+    for line in errlines:
+        socketio.emit("BuildError", {"line": line})
+
+
 class Main:
     def __init__(self) -> None:
         self.GitController = GitController()
@@ -19,10 +50,29 @@ class Main:
     @socketio.on('Console')
     def HandleConsole(jsonData):
         if jsonData["data"] == "Start":
-            t = threading.Thread(target=lambda p: subprocess.Popen(
-                ["/usr/bin/env", "ttyd", "-p", p, "--writable", "-o", "bash"]), args=(jsonData["port"],))
-            t.start()
+            subprocess.Popen(["/usr/bin/env", "ttyd", "-p",
+                             jsonData["port"], "--writable", "-o", "bash"])
             socketio.emit("ConsoleStarted", {"data": jsonData["port"]})
+
+    @socketio.on('StartBuild')
+    def HandleStartBuild(jsonData):
+        buildingProcess = threading.Thread(target=StartBuild, args=(jsonData,))
+        buildingProcess.start()
+        buildingLogs = threading.Thread(target=SendBuildOut)
+        buildingLogs.start()
+        buildingErr = threading.Thread(target=SendBuildErr)
+        buildingErr.start()
+
+    @socketio.on('TermBuild')
+    def HandleTermBuild(jsonData):
+        pass
+
+    @socketio.on("CheckRunningStatus")
+    def HandleCheckRunningStatus(jsonData):
+        if buildingProcess == None:
+            socketio.emit("RunningStatus", {"data": False})
+            return
+        socketio.emit("RunningStatus", {"data": buildingProcess.is_alive()})
 
 
 class GitController:
@@ -33,10 +83,9 @@ class GitController:
         projectName = ""
         if directory == "":
             projectName = url.split("/")[-1].removesuffix(".git")
-            directory = os.path.join(os.getcwd(), "../Projects/"+projectName)
         else:
             projectName = directory
-            directory = os.path.join(os.getcwd(), "../Projects/"+projectName)
+        directory = os.path.join(os.getcwd(), "../Projects/"+projectName)
         try:
             git.Repo.clone_from(url, directory, progress=self.CloneProgress)
             socketio.emit('CloneStatus', {"data": 'Success'})
