@@ -15,13 +15,13 @@ class GitController:
             directory = os.path.join(os.getcwd(), "../Projects/"+projectName)
         else:
             projectName = directory
-            directory =os.path.join(os.getcwd(), "../Projects/"+projectName)
+            directory = os.path.join(os.getcwd(), "../Projects/"+projectName)
         try:
             git.Repo.clone_from(url, directory, progress=self.CloneProgress)
-            socketio.emit('CloneStatus', "Success "+projectName)
+            socketio.emit('CloneStatus', {"data": 'Success'})
         except Exception as e:
-            socketio.emit("CloneStatus", str(e))
-            print(str(e))
+           socketio.emit("CloneStatus", {"data": str(e)})
+           print(str(e))
 
 
 class CloneProgress(RemoteProgress):
