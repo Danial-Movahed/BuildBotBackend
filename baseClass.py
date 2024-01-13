@@ -17,19 +17,38 @@ def StartBuild(jsonData):
 
 
 def SendBuildOut(jsonData):
-    logfile = open(os.path.join(os.getcwd(), "../Projects/" +
-                   jsonData["Project"]+"/.BuildOutput"), "r")
+    print("called")
+    global buildingProcess
+    try:
+        logfile = open(os.path.join(os.getcwd(), "../Projects/" +
+                    jsonData["Project"]+"/.BuildOutput"), "r")
+    except:
+        SendBuildOut(jsonData)
+        return
     loglines = follow(logfile, buildingProcess.is_alive())
+    socketio.emit("RunningStatus", {"data": True})
     for line in loglines:
+        print("sending "+line)
         socketio.emit("BuildLog", {"line": line})
+    logfile.close()
 
 
 def SendBuildErr(jsonData):
-    errfile = open(os.path.join(os.getcwd(), "../Projects/" +
-                   jsonData["Project"]+"/.BuildError"), "r")
+    print("called")
+    global buildingProcess
+    try:
+        errfile = open(os.path.join(os.getcwd(), "../Projects/" +
+                    jsonData["Project"]+"/.BuildError"), "r")
+    except:
+        SendBuildErr(jsonData)
+        return
     errlines = follow(errfile, buildingProcess.is_alive())
+    socketio.emit("RunningStatus", {"data": True})
     for line in errlines:
+        print("sending "+line)
         socketio.emit("BuildError", {"line": line})
+    errfile.close()
+    print("Done exiting")
 
 
 class Main:
@@ -56,11 +75,12 @@ class Main:
 
     @socketio.on('StartBuild')
     def HandleStartBuild(jsonData):
+        global buildingProcess
         buildingProcess = threading.Thread(target=StartBuild, args=(jsonData,))
         buildingProcess.start()
-        buildingLogs = threading.Thread(target=SendBuildOut)
+        buildingLogs = threading.Thread(target=SendBuildOut, args=(jsonData,))
         buildingLogs.start()
-        buildingErr = threading.Thread(target=SendBuildErr)
+        buildingErr = threading.Thread(target=SendBuildErr, args=(jsonData,))
         buildingErr.start()
 
     @socketio.on('TermBuild')
@@ -78,6 +98,7 @@ class Main:
     def HandleGetAvailableProjects(jsonData):
         onlyDirs = [f for f in os.listdir("../Projects") if os.path.isdir(os.path.join("../Projects", f))]
         socketio.emit("ListAvailableProjects", {"Projects": onlyDirs})
+
 
 class GitController:
     def __init__(self) -> None:
