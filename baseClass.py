@@ -1,9 +1,10 @@
+import signal
 from common import *
 
 
 def follow(thefile, aliveChecker):
     thefile.seek(0, 2)
-    while aliveChecker:
+    while aliveChecker.poll() == None:
         line = thefile.readline()
         if not line:
             sleep(0.5)
@@ -12,9 +13,9 @@ def follow(thefile, aliveChecker):
 
 
 def StartBuild(jsonData):
-    subprocess.run("/usr/bin/env make > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
-                   "../Projects/"+jsonData["Project"]), shell=True)
-
+    global buildingProcess
+    buildingProcess = subprocess.Popen("/usr/bin/env make > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
+                   "../Projects/"+jsonData["Project"]), shell=True, preexec_fn=os.setsid)
 
 def SendBuildOut(jsonData):
     print("called")
@@ -25,7 +26,7 @@ def SendBuildOut(jsonData):
     except:
         SendBuildOut(jsonData)
         return
-    loglines = follow(logfile, buildingProcess.is_alive())
+    loglines = follow(logfile, buildingProcess)
     socketio.emit("RunningStatus", {"data": True})
     for line in loglines:
         print("sending "+line)
@@ -42,7 +43,7 @@ def SendBuildErr(jsonData):
     except:
         SendBuildErr(jsonData)
         return
-    errlines = follow(errfile, buildingProcess.is_alive())
+    errlines = follow(errfile, buildingProcess)
     socketio.emit("RunningStatus", {"data": True})
     for line in errlines:
         print("sending "+line)
@@ -75,24 +76,40 @@ class Main:
 
     @socketio.on('StartBuild')
     def HandleStartBuild(jsonData):
-        global buildingProcess
-        buildingProcess = threading.Thread(target=StartBuild, args=(jsonData,))
-        buildingProcess.start()
+        # global buildingProcess
+        # buildingProcess = multiprocessing.Process(target=StartBuild, args=(jsonData,))
+        # buildingProcess.start()
+        StartBuild(jsonData)
         buildingLogs = threading.Thread(target=SendBuildOut, args=(jsonData,))
         buildingLogs.start()
         buildingErr = threading.Thread(target=SendBuildErr, args=(jsonData,))
         buildingErr.start()
 
-    @socketio.on('TermBuild')
-    def HandleTermBuild(jsonData):
-        pass
+    @socketio.on('StopBuild')
+    def HandleStopBuild(jsonData):
+        global buildingProcess
+        # print(buildingProcess.pid)
+        # os.kill(buildingProcess.pid, signal.SIGINT)
+        # buildingProcess.send_signal(signal.SIGINT)
+        os.killpg(os.getpgid(buildingProcess.pid), signal.SIGINT)
+        print("stopped build!")
+        socketio.emit("StopBuildStatus", {"data": True})
+
+    @socketio.on("KillBuild")
+    def HandleKillBuild(jsonData):
+        global buildingProcess
+        # buildingProcess.kill()
+        os.killpg(os.getpgid(buildingProcess.pid), signal.SIGKILL)
+        print("killed build!")
+        socketio.emit("KillBuildStatus", {"data": True})
 
     @socketio.on("CheckRunningStatus")
     def HandleCheckRunningStatus(jsonData):
+        global buildingProcess
         if buildingProcess == None:
             socketio.emit("RunningStatus", {"data": False})
             return
-        socketio.emit("RunningStatus", {"data": buildingProcess.is_alive()})
+        socketio.emit("RunningStatus", {"data": buildingProcess.poll()})
 
     @socketio.on("GetAvailableProjects")
     def HandleGetAvailableProjects(jsonData):
