@@ -37,6 +37,7 @@ def SendBuildOut(jsonData):
         print("sending "+line)
         socketio.emit("BuildLog", {"line": line})
     logfile.close()
+    socketio.emit("RunningStatus", {"data": False})
 
 
 def SendBuildErr(jsonData):
@@ -54,7 +55,7 @@ def SendBuildErr(jsonData):
         print("sending "+line)
         socketio.emit("BuildError", {"line": line})
     errfile.close()
-    print("Done exiting")
+    socketio.emit("RunningStatus", {"data": False})
 
 
 class Main:
