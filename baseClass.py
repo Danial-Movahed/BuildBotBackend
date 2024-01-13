@@ -93,7 +93,7 @@ class Main:
         # buildingProcess.send_signal(signal.SIGINT)
         os.killpg(os.getpgid(buildingProcess.pid), signal.SIGINT)
         print("stopped build!")
-        socketio.emit("StopBuildStatus", {"data": True})
+        socketio.emit("RunningStatus", {"data": False})
 
     @socketio.on("KillBuild")
     def HandleKillBuild(jsonData):
@@ -101,7 +101,7 @@ class Main:
         # buildingProcess.kill()
         os.killpg(os.getpgid(buildingProcess.pid), signal.SIGKILL)
         print("killed build!")
-        socketio.emit("KillBuildStatus", {"data": True})
+        socketio.emit("RunningStatus", {"data": False})
 
     @socketio.on("CheckRunningStatus")
     def HandleCheckRunningStatus(jsonData):
