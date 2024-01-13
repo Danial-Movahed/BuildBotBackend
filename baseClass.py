@@ -17,6 +17,11 @@ def StartBuild(jsonData):
     buildingProcess = subprocess.Popen("/usr/bin/env make > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
                    "../Projects/"+jsonData["Project"]), shell=True, preexec_fn=os.setsid)
 
+def StartClean(jsonData):
+    global buildingProcess
+    buildingProcess = subprocess.Popen("/usr/bin/env make clean > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
+                   "../Projects/"+jsonData["Project"]), shell=True, preexec_fn=os.setsid)
+
 def SendBuildOut(jsonData):
     print("called")
     global buildingProcess
@@ -102,6 +107,16 @@ class Main:
         os.killpg(os.getpgid(buildingProcess.pid), signal.SIGKILL)
         print("killed build!")
         socketio.emit("RunningStatus", {"data": False})
+
+    @socketio.on("CleanProject")
+    def HandleCleanProject(jsonData):
+        StartClean(jsonData)
+        buildingLogs = threading.Thread(target=SendBuildOut, args=(jsonData,))
+        buildingLogs.start()
+        buildingErr = threading.Thread(target=SendBuildErr, args=(jsonData,))
+        buildingErr.start()
+        buildingProcess.wait()
+        socketio.emit("CleanProjectStatus", {"data": True})
 
     @socketio.on("CheckRunningStatus")
     def HandleCheckRunningStatus(jsonData):
