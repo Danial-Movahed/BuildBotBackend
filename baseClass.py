@@ -74,6 +74,10 @@ class Main:
             return
         socketio.emit("RunningStatus", {"data": buildingProcess.is_alive()})
 
+    @socketio.on("GetAvailableProjects")
+    def HandleGetAvailableProjects(jsonData):
+        onlyDirs = [f for f in os.listdir("../Projects") if os.path.isdir(os.path.join("../Projects", f))]
+        socketio.emit("ListAvailableProjects", {"Projects": onlyDirs})
 
 class GitController:
     def __init__(self) -> None:
