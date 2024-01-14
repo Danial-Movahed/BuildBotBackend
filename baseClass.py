@@ -126,8 +126,10 @@ class Main:
             socketio.emit("RunningStatus", {"data": False})
             return
         print("Process running: ##############################")
-        print(buildingProcess.poll())
-        socketio.emit("RunningStatus", {"data": buildingProcess.poll()})
+        if buildingProcess.poll() == None:
+            socketio.emit("RunningStatus", {"data": True})
+            return
+        socketio.emit("CheckRunningStatus", {"data": False})
 
     @socketio.on("GetAvailableProjects")
     def HandleGetAvailableProjects(jsonData):
