@@ -13,13 +13,13 @@ def follow(thefile, aliveChecker):
 
 
 def StartBuild(jsonData):
-    global buildingProcess
-    buildingProcess = subprocess.Popen("/usr/bin/env make > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
+    global buildingProcess, buildCMD
+    buildingProcess = subprocess.Popen(buildCMD + " > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
                    "../Projects/"+jsonData["Project"]), shell=True, preexec_fn=os.setsid)
 
 def StartClean(jsonData):
-    global buildingProcess
-    buildingProcess = subprocess.Popen("/usr/bin/env make clean > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
+    global buildingProcess, buildCMD
+    buildingProcess = subprocess.Popen(buildCMD + " clean > .BuildOutput 2>.BuildError", cwd=os.path.join(os.getcwd(),
                    "../Projects/"+jsonData["Project"]), shell=True, preexec_fn=os.setsid)
 
 def SendBuildOut(jsonData):
@@ -132,7 +132,16 @@ class Main:
         onlyDirs = [f for f in os.listdir("../Projects") if os.path.isdir(os.path.join("../Projects", f))]
         socketio.emit("ListAvailableProjects", {"Projects": onlyDirs})
 
+    @socketio.on("SetBuildCMD")
+    def HandleSetBuildCMD(jsonData):
+        global buildCMD
+        buildCMD = jsonData["cmd"]
+        socketio.emit("ConfirmSetBuildCMD",{})
 
+    @socketio.on("GetBuildCMD")
+    def HandleGetBuildCMD(jsonData):
+        global buildCMD
+        socketio.emit("BuildCMD",{"cmd":buildCMD})
 class GitController:
     def __init__(self) -> None:
         self.CloneProgress = CloneProgress()
