@@ -125,6 +125,8 @@ class Main:
         if buildingProcess == None:
             socketio.emit("RunningStatus", {"data": False})
             return
+        print("Process running: ##############################")
+        print(buildingProcess.poll())
         socketio.emit("RunningStatus", {"data": buildingProcess.poll()})
 
     @socketio.on("GetAvailableProjects")
